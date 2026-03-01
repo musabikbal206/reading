@@ -283,7 +283,7 @@
             <div id="student-active" class="hidden space-y-6">
                 
                 <!-- Visual Learner Accessibility & PDF Toolbar -->
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 sticky top-16 z-10 print:hidden">
+                <div id="pdf-toolbar" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 sticky top-16 z-10 print:hidden">
                     <div class="flex items-center gap-6">
                         <!-- Text Size Controls -->
                         <div class="flex items-center gap-2">
@@ -315,13 +315,13 @@
                 <!-- Passage Card -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10" id="passage-card-container">
                     <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 print:border-b-2 print:border-black">
-                        <div class="w-10 h-10 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-lg print:hidden">
+                        <div class="w-10 h-10 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-lg print:hidden pdf-hide-icon">
                             <i class="fa-solid fa-book-open"></i>
                         </div>
                         <h2 class="text-2xl font-bold text-slate-800">Reading Passage</h2>
                     </div>
                     
-                    <div class="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm mb-6 flex items-start sm:items-center gap-3 shadow-sm border border-blue-100 print:hidden">
+                    <div id="visual-tip" class="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm mb-6 flex items-start sm:items-center gap-3 shadow-sm border border-blue-100 print:hidden">
                         <i class="fa-solid fa-language text-blue-500 text-xl mt-0.5 sm:mt-0"></i>
                         <span><strong>Visual Learner Tip:</strong> Highlight (click and drag) any word or entire sentence in the text below to instantly see its <strong>Turkish translation</strong>!</span>
                     </div>
@@ -340,7 +340,7 @@
                     <!-- MCQs Card -->
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10 break-inside-avoid">
                         <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 print:border-b-2 print:border-black">
-                            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg print:hidden">
+                            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg print:hidden pdf-hide-icon">
                                 <i class="fa-solid fa-clipboard-question"></i>
                             </div>
                             <h2 class="text-2xl font-bold text-slate-800">Multiple Choice</h2>
@@ -353,7 +353,7 @@
                     <!-- True/False Card -->
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10 break-inside-avoid">
                         <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 print:border-b-2 print:border-black">
-                            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg print:hidden">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg print:hidden pdf-hide-icon">
                                 <i class="fa-solid fa-scale-balanced"></i>
                             </div>
                             <h2 class="text-2xl font-bold text-slate-800">True or False</h2>
@@ -752,6 +752,33 @@ Generate 3 MCQs and 3 True/False questions.`;
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating...`;
             btn.disabled = true;
 
+            // --- 1. PREPARE UI FOR CLEAN EXPORT ---
+            // Hide web-only elements (toolbars, tooltips, buttons, decorative icons)
+            const elementsToHide = [
+                document.getElementById('pdf-toolbar'),
+                document.getElementById('visual-tip'),
+                document.getElementById('submit-area'),
+                ...document.querySelectorAll('.pdf-hide-icon'),
+                ...document.querySelectorAll('.tf-interactive')
+            ];
+            
+            elementsToHide.forEach(el => {
+                if(el) el.style.display = 'none';
+            });
+
+            // Show T/F print fallbacks
+            const tfFallbacks = document.querySelectorAll('.tf-print-fallback');
+            tfFallbacks.forEach(el => {
+                el.classList.remove('hidden');
+                el.classList.add('flex');
+            });
+
+            // Remove box shadows and borders from cards for a cleaner document look
+            const cards = document.querySelectorAll('#student-active .bg-white.rounded-2xl');
+            cards.forEach(card => {
+                card.classList.remove('shadow-sm', 'border', 'border-slate-100');
+            });
+
             // Optional configurations for html2pdf
             const opt = {
                 margin:       [0.5, 0.5, 0.5, 0.5], // top, left, bottom, right
@@ -761,9 +788,21 @@ Generate 3 MCQs and 3 True/False questions.`;
                 jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
             };
 
-            // Notice the "print:hidden" classes in the HTML. 
-            // html2pdf will naturally respect these or we can temporarily add a class if needed.
             html2pdf().set(opt).from(element).save().then(() => {
+                // --- 2. RESTORE UI AFTER EXPORT ---
+                elementsToHide.forEach(el => {
+                    if(el) el.style.display = '';
+                });
+
+                tfFallbacks.forEach(el => {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                });
+
+                cards.forEach(card => {
+                    card.classList.add('shadow-sm', 'border', 'border-slate-100');
+                });
+
                 // Restore button
                 btn.innerHTML = originalBtnHtml;
                 btn.disabled = false;
@@ -833,7 +872,7 @@ Generate 3 MCQs and 3 True/False questions.`;
                                 <span class="text-emerald-500">${qIdx + 1}.</span> ${tf.statement}
                             </h3>
                         </div>
-                        <div class="flex gap-2 flex-shrink-0 print:hidden">
+                        <div class="tf-interactive flex gap-2 flex-shrink-0 print:hidden">
                             <label class="cursor-pointer">
                                 <input type="radio" name="tf_${qIdx}" value="true" class="peer hidden" required>
                                 <div class="px-6 py-2 rounded-lg border-2 border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 font-bold text-slate-500 transition-all text-center">True</div>
@@ -844,7 +883,7 @@ Generate 3 MCQs and 3 True/False questions.`;
                             </label>
                         </div>
                         <!-- Print fallback for T/F -->
-                        <div class="hidden print:flex gap-4 font-bold text-slate-400">
+                        <div class="tf-print-fallback hidden gap-4 font-bold text-slate-400">
                             <span>[  ] True</span>
                             <span>[  ] False</span>
                         </div>
