@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts for highly readable typography -->
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <!-- html2pdf for easy PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <script>
         tailwind.config = {
@@ -84,17 +86,32 @@
         .reading-text {
             font-family: 'Lora', serif;
             line-height: 2.2;
-            font-size: 1.15rem;
+            font-size: 1.15rem; /* Base size, will be adjustable */
             color: #334155;
             letter-spacing: 0.02em;
+            transition: all 0.3s ease; /* Smooth transition for color/size changes */
         }
         .reading-text p { margin-bottom: 1.5rem; }
+
+        /* Color picker input styling */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            padding: 0;
+            overflow: hidden;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 2px solid #cbd5e1; border-radius: 50%; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
 
     <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-10">
+    <header class="bg-white shadow-sm sticky top-0 z-10 print:hidden">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-2 text-brand-600">
                 <i class="fa-solid fa-book-open-reader text-2xl"></i>
@@ -118,12 +135,15 @@
         <section id="view-teacher" class="fade-in space-y-6">
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 <!-- Tabs -->
-                <div class="flex border-b border-slate-100">
-                    <button id="tab-ai" class="flex-1 py-4 text-center font-semibold text-brand-600 border-b-2 border-brand-500 bg-brand-50 transition-colors" onclick="switchTeacherTab('ai')">
-                        <i class="fa-solid fa-robot mr-2"></i>AI Prompt & Import
+                <div class="flex border-b border-slate-100 flex-wrap sm:flex-nowrap">
+                    <button id="tab-ai" class="flex-1 py-4 text-center font-semibold text-brand-600 border-b-2 border-brand-500 bg-brand-50 transition-colors w-full sm:w-auto" onclick="switchTeacherTab('ai')">
+                        <i class="fa-solid fa-robot mr-2"></i>AI Import
                     </button>
-                    <button id="tab-manual" class="flex-1 py-4 text-center font-semibold text-slate-500 hover:bg-slate-50 transition-colors" onclick="switchTeacherTab('manual')">
+                    <button id="tab-manual" class="flex-1 py-4 text-center font-semibold text-slate-500 hover:bg-slate-50 transition-colors border-b-2 border-transparent w-full sm:w-auto" onclick="switchTeacherTab('manual')">
                         <i class="fa-solid fa-pen-to-square mr-2"></i>Manual Input
+                    </button>
+                    <button id="tab-library" class="flex-1 py-4 text-center font-semibold text-slate-500 hover:bg-slate-50 transition-colors border-b-2 border-transparent w-full sm:w-auto" onclick="switchTeacherTab('library')">
+                        <i class="fa-solid fa-book-bookmark mr-2"></i>Library
                     </button>
                 </div>
 
@@ -212,10 +232,32 @@
                         </div>
                     </div>
 
-                    <div class="pt-4 border-t border-slate-100 flex justify-end">
-                        <button onclick="saveManualLesson()" class="px-8 py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2">
-                            <i class="fa-solid fa-save"></i> Save & Preview Lesson
+                    <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-3">
+                        <button onclick="saveLessonToLibrary()" class="px-6 py-3 bg-white border-2 border-brand-600 text-brand-600 hover:bg-brand-50 rounded-xl font-bold shadow-sm transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bookmark"></i> Save to Library
                         </button>
+                        <button onclick="saveManualLessonAndPreview()" class="px-8 py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-play"></i> Preview Lesson
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Library Tab Content -->
+                <div id="content-library" class="hidden p-6 sm:p-8">
+                    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                        <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-book-bookmark"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-800">Saved Lessons</h2>
+                    </div>
+                    
+                    <div id="library-empty" class="text-center py-10 hidden">
+                        <i class="fa-solid fa-folder-open text-4xl text-slate-300 mb-3"></i>
+                        <p class="text-slate-500 font-medium">Your library is empty. Save a lesson from the Manual Input tab!</p>
+                    </div>
+
+                    <div id="library-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
             </div>
@@ -225,7 +267,7 @@
         </section>
 
         <!-- ================= STUDENT VIEW ================= -->
-        <section id="view-student" class="hidden fade-in space-y-8">
+        <section id="view-student" class="hidden fade-in space-y-6">
             
             <!-- Empty State -->
             <div id="student-empty" class="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-100">
@@ -238,33 +280,67 @@
             </div>
 
             <!-- Active Lesson State -->
-            <div id="student-active" class="hidden space-y-8">
+            <div id="student-active" class="hidden space-y-6">
+                
+                <!-- Visual Learner Accessibility & PDF Toolbar -->
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 sticky top-16 z-10 print:hidden">
+                    <div class="flex items-center gap-6">
+                        <!-- Text Size Controls -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-slate-500 mr-1"><i class="fa-solid fa-text-height mr-1"></i>Size</span>
+                            <button onclick="adjustFontSize(-0.1)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors">-</button>
+                            <button onclick="adjustFontSize(0.1)" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors">+</button>
+                        </div>
+                        
+                        <!-- Color Controls -->
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2" title="Text Color">
+                                <i class="fa-solid fa-font text-slate-400 text-sm"></i>
+                                <input type="color" id="text-color-picker" value="#334155" onchange="updateColors()">
+                            </div>
+                            <div class="flex items-center gap-2" title="Background Color">
+                                <i class="fa-solid fa-fill-drip text-slate-400 text-sm"></i>
+                                <input type="color" id="bg-color-picker" value="#ffffff" onchange="updateColors()">
+                            </div>
+                            <button onclick="resetColors()" class="text-xs text-slate-400 hover:text-brand-500 underline ml-1">Reset</button>
+                        </div>
+                    </div>
+
+                    <!-- PDF Export Button -->
+                    <button onclick="exportToPDF()" id="btn-export-pdf" class="px-5 py-2 bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-xl font-bold transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> Save as PDF
+                    </button>
+                </div>
+
                 <!-- Passage Card -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10">
-                    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                        <div class="w-10 h-10 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-lg">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10" id="passage-card-container">
+                    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 print:border-b-2 print:border-black">
+                        <div class="w-10 h-10 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-lg print:hidden">
                             <i class="fa-solid fa-book-open"></i>
                         </div>
                         <h2 class="text-2xl font-bold text-slate-800">Reading Passage</h2>
                     </div>
                     
-                    <div class="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm mb-6 flex items-start sm:items-center gap-3 shadow-sm border border-blue-100">
+                    <div class="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm mb-6 flex items-start sm:items-center gap-3 shadow-sm border border-blue-100 print:hidden">
                         <i class="fa-solid fa-language text-blue-500 text-xl mt-0.5 sm:mt-0"></i>
-                        <span><strong>Visual Learner Tip:</strong> Double-click any word in the text below to instantly see its <strong>Turkish translation</strong>!</span>
+                        <span><strong>Visual Learner Tip:</strong> Highlight (click and drag) any word or entire sentence in the text below to instantly see its <strong>Turkish translation</strong>!</span>
                     </div>
 
-                    <div id="student-passage" class="reading-text">
-                        <!-- Content injected via JS -->
+                    <!-- Inner container for background color manipulation -->
+                    <div id="student-passage-wrapper" class="p-4 rounded-xl transition-colors">
+                        <div id="student-passage" class="reading-text">
+                            <!-- Content injected via JS -->
+                        </div>
                     </div>
                 </div>
 
                 <!-- Questions Form -->
-                <form id="student-form" onsubmit="checkAnswers(event)" class="space-y-8">
+                <form id="student-form" onsubmit="checkAnswers(event)" class="space-y-6">
                     
                     <!-- MCQs Card -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10">
-                        <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10 break-inside-avoid">
+                        <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 print:border-b-2 print:border-black">
+                            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg print:hidden">
                                 <i class="fa-solid fa-clipboard-question"></i>
                             </div>
                             <h2 class="text-2xl font-bold text-slate-800">Multiple Choice</h2>
@@ -275,9 +351,9 @@
                     </div>
 
                     <!-- True/False Card -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10">
-                        <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10 break-inside-avoid">
+                        <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 print:border-b-2 print:border-black">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg print:hidden">
                                 <i class="fa-solid fa-scale-balanced"></i>
                             </div>
                             <h2 class="text-2xl font-bold text-slate-800">True or False</h2>
@@ -288,7 +364,7 @@
                     </div>
 
                     <!-- Submit Area -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 text-center sticky bottom-4 z-20">
+                    <div id="submit-area" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 text-center sticky bottom-4 z-20 print:hidden">
                         <button type="submit" id="btn-submit" class="w-full sm:w-auto px-10 py-4 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">
                             <i class="fa-solid fa-paper-plane mr-2"></i> Submit Answers
                         </button>
@@ -308,13 +384,19 @@
     </main>
 
     <!-- Floating Dictionary Tooltip -->
-    <div id="dictionary-tooltip" class="hidden absolute z-50 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-xl text-sm max-w-xs transition-opacity duration-200 pointer-events-none after:content-[''] after:absolute after:top-full after:left-1/2 after:-ml-2 after:border-4 after:border-transparent after:border-t-slate-800"></div>
+    <div id="dictionary-tooltip" class="hidden absolute z-50 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-2xl text-sm max-w-sm transition-opacity duration-200 pointer-events-none after:content-[''] after:absolute after:top-full after:left-1/2 after:-ml-2 after:border-4 after:border-transparent after:border-t-slate-800 print:hidden"></div>
 
     <script>
         // ================= STATE MANAGEMENT =================
         let appState = {
             currentView: 'teacher', // 'teacher' or 'student'
-            lessonData: null // { passage: "", mcqs: [], tfs: [] }
+            lessonData: null, // { passage: "", mcqs: [], tfs: [] }
+            passageFontSize: 1.15 // Default rem
+        };
+
+        // Initialize Library on load
+        window.onload = () => {
+            renderLibrary();
         };
 
         // ================= UI NAVIGATION & TABS =================
@@ -340,18 +422,16 @@
         }
 
         function switchTeacherTab(tab) {
-            const isAI = tab === 'ai';
+            // Setup active/inactive classes
+            const activeClass = 'flex-1 py-4 text-center font-semibold text-brand-600 border-b-2 border-brand-500 bg-brand-50 transition-colors w-full sm:w-auto';
+            const inactiveClass = 'flex-1 py-4 text-center font-semibold text-slate-500 hover:bg-slate-50 transition-colors border-b-2 border-transparent w-full sm:w-auto';
             
-            // Update Tab Styling
-            const activeClass = 'flex-1 py-4 text-center font-semibold text-brand-600 border-b-2 border-brand-500 bg-brand-50 transition-colors';
-            const inactiveClass = 'flex-1 py-4 text-center font-semibold text-slate-500 hover:bg-slate-50 transition-colors border-b border-transparent';
-            
-            document.getElementById('tab-ai').className = isAI ? activeClass : inactiveClass;
-            document.getElementById('tab-manual').className = !isAI ? activeClass : inactiveClass;
+            ['ai', 'manual', 'library'].forEach(t => {
+                document.getElementById(`tab-${t}`).className = (t === tab) ? activeClass : inactiveClass;
+                document.getElementById(`content-${t}`).classList.toggle('hidden', t !== tab);
+            });
 
-            // Update Content Visibility
-            document.getElementById('content-ai').classList.toggle('hidden', !isAI);
-            document.getElementById('content-manual').classList.toggle('hidden', isAI);
+            if(tab === 'library') renderLibrary();
         }
 
         function showAlert(message, type = 'error') {
@@ -363,6 +443,86 @@
             alertEl.classList.remove('hidden');
             setTimeout(() => alertEl.classList.add('hidden'), 5000);
         }
+
+        // ================= SAVED LESSONS LIBRARY =================
+        function saveLessonToLibrary() {
+            // First collect data from manual form
+            const currentData = collectManualData();
+            if (!currentData) return; // Validation failed
+
+            const lessonName = prompt("Enter a name for this lesson to save it in your Library:");
+            if (!lessonName || lessonName.trim() === '') return;
+
+            const newLesson = {
+                id: Date.now().toString(),
+                name: lessonName.trim(),
+                date: new Date().toLocaleDateString(),
+                data: currentData
+            };
+
+            const savedLessons = JSON.parse(localStorage.getItem('readingLessons') || '[]');
+            savedLessons.unshift(newLesson); // Add to beginning
+            localStorage.setItem('readingLessons', JSON.stringify(savedLessons));
+            
+            showAlert(`Lesson "${newLesson.name}" saved to Library!`, "success");
+            switchTeacherTab('library');
+        }
+
+        function renderLibrary() {
+            const savedLessons = JSON.parse(localStorage.getItem('readingLessons') || '[]');
+            const listEl = document.getElementById('library-list');
+            const emptyEl = document.getElementById('library-empty');
+
+            if (savedLessons.length === 0) {
+                listEl.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+            listEl.innerHTML = savedLessons.map(lesson => `
+                <div class="bg-white border border-slate-200 p-4 rounded-xl hover:shadow-md transition-shadow flex flex-col justify-between h-full gap-4">
+                    <div>
+                        <h3 class="font-bold text-lg text-slate-800">${lesson.name}</h3>
+                        <p class="text-sm text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${lesson.date}</p>
+                        <div class="flex gap-2 mt-3">
+                            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-md">${lesson.data.mcqs.length} MCQs</span>
+                            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-md">${lesson.data.tfs.length} T/F</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 border-t border-slate-100 pt-3 mt-2">
+                        <button onclick="loadFromLibrary('${lesson.id}')" class="flex-1 bg-brand-50 hover:bg-brand-100 text-brand-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors">
+                            <i class="fa-solid fa-folder-open mr-1"></i> Load
+                        </button>
+                        <button onclick="deleteFromLibrary('${lesson.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2 rounded-lg text-sm font-bold transition-colors" title="Delete">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadFromLibrary(id) {
+            const savedLessons = JSON.parse(localStorage.getItem('readingLessons') || '[]');
+            const lesson = savedLessons.find(l => l.id === id);
+            
+            if (lesson) {
+                appState.lessonData = lesson.data;
+                populateManualForm(lesson.data);
+                switchTeacherTab('manual');
+                showAlert(`Loaded "${lesson.name}" successfully!`, "success");
+            }
+        }
+
+        function deleteFromLibrary(id) {
+            if (confirm("Are you sure you want to delete this saved lesson?")) {
+                let savedLessons = JSON.parse(localStorage.getItem('readingLessons') || '[]');
+                savedLessons = savedLessons.filter(l => l.id !== id);
+                localStorage.setItem('readingLessons', JSON.stringify(savedLessons));
+                renderLibrary();
+            }
+        }
+
 
         // ================= AI PROMPT & IMPORT LOGIC =================
         function generatePrompt() {
@@ -422,7 +582,6 @@ Generate 3 MCQs and 3 True/False questions.`;
             }
 
             try {
-                // Remove potential markdown code blocks if the AI added them (e.g., ```json ... ```)
                 let cleanJson = jsonInput;
                 if (cleanJson.startsWith('```')) {
                     const firstNewline = cleanJson.indexOf('\n');
@@ -434,10 +593,7 @@ Generate 3 MCQs and 3 True/False questions.`;
 
                 const parsedData = JSON.parse(cleanJson);
                 
-                // Validate basic structure
-                if (!parsedData.passage) {
-                    throw new Error("Missing 'passage' in the JSON data.");
-                }
+                if (!parsedData.passage) throw new Error("Missing 'passage'");
 
                 appState.lessonData = {
                     passage: parsedData.passage || "",
@@ -445,12 +601,8 @@ Generate 3 MCQs and 3 True/False questions.`;
                     tfs: parsedData.tfs || []
                 };
                 
-                showAlert("Lesson imported successfully! Review it in Manual Input or click Student.", "success");
-                
-                // Pre-fill manual form so the teacher can review/edit
+                showAlert("Lesson imported successfully!", "success");
                 populateManualForm(appState.lessonData);
-                
-                // Automatically switch to the manual tab so they can see what was imported
                 switchTeacherTab('manual');
 
             } catch (error) {
@@ -509,11 +661,12 @@ Generate 3 MCQs and 3 True/False questions.`;
             (data.tfs || []).forEach(q => addManualTF(q));
         }
 
-        function saveManualLesson() {
+        // Helper to extract data from manual fields
+        function collectManualData() {
             const passage = document.getElementById('manual-passage').value.trim();
             if (!passage) {
                 showAlert("Reading passage cannot be empty.");
-                return;
+                return null;
             }
 
             const mcqs = [];
@@ -542,17 +695,81 @@ Generate 3 MCQs and 3 True/False questions.`;
 
             if (mcqs.length === 0 && tfs.length === 0) {
                 showAlert("Please add at least one question or statement.");
-                return;
+                return null;
             }
 
-            appState.lessonData = { passage, mcqs, tfs };
-            showAlert("Lesson saved successfully!", "success");
-            setTimeout(() => switchMainView('student'), 1000);
+            return { passage, mcqs, tfs };
+        }
+
+        function saveManualLessonAndPreview() {
+            const data = collectManualData();
+            if(data) {
+                appState.lessonData = data;
+                switchMainView('student');
+            }
         }
 
         // Initialize empty manual form
         addManualMCQ();
         addManualTF();
+
+
+        // ================= VISUAL ACCESSIBILITY CONTROLS =================
+        function adjustFontSize(step) {
+            appState.passageFontSize += step;
+            // Bound between 0.8rem and 2.5rem
+            if(appState.passageFontSize < 0.8) appState.passageFontSize = 0.8;
+            if(appState.passageFontSize > 2.5) appState.passageFontSize = 2.5;
+            
+            document.getElementById('student-passage').style.fontSize = `${appState.passageFontSize}rem`;
+        }
+
+        function updateColors() {
+            const textColor = document.getElementById('text-color-picker').value;
+            const bgColor = document.getElementById('bg-color-picker').value;
+            
+            document.getElementById('student-passage').style.color = textColor;
+            document.getElementById('student-passage-wrapper').style.backgroundColor = bgColor;
+        }
+
+        function resetColors() {
+            document.getElementById('text-color-picker').value = '#334155';
+            document.getElementById('bg-color-picker').value = '#ffffff';
+            updateColors();
+            
+            appState.passageFontSize = 1.15;
+            document.getElementById('student-passage').style.fontSize = `${appState.passageFontSize}rem`;
+        }
+
+
+        // ================= EXPORT TO PDF =================
+        function exportToPDF() {
+            const element = document.getElementById('student-active');
+            const btn = document.getElementById('btn-export-pdf');
+            
+            // Visual feedback
+            const originalBtnHtml = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating...`;
+            btn.disabled = true;
+
+            // Optional configurations for html2pdf
+            const opt = {
+                margin:       [0.5, 0.5, 0.5, 0.5], // top, left, bottom, right
+                filename:     'Reading-Comprehension-Lesson.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            // Notice the "print:hidden" classes in the HTML. 
+            // html2pdf will naturally respect these or we can temporarily add a class if needed.
+            html2pdf().set(opt).from(element).save().then(() => {
+                // Restore button
+                btn.innerHTML = originalBtnHtml;
+                btn.disabled = false;
+            });
+        }
+
 
         // ================= STUDENT VIEW RENDERING =================
         function renderLesson() {
@@ -572,7 +789,10 @@ Generate 3 MCQs and 3 True/False questions.`;
             const mcqs = appState.lessonData.mcqs || [];
             const tfs = appState.lessonData.tfs || [];
 
-            // Render Passage (convert single newlines to paragraphs for visual learners)
+            // Apply default accessibility settings visually
+            document.getElementById('student-passage').style.fontSize = `${appState.passageFontSize}rem`;
+
+            // Render Passage
             const passageHtml = passage.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
             document.getElementById('student-passage').innerHTML = passageHtml;
 
@@ -589,15 +809,15 @@ Generate 3 MCQs and 3 True/False questions.`;
                             ${mcq.options.map((opt, oIdx) => `
                                 <label class="flex items-start p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors group">
                                     <div class="pt-0.5">
-                                        <input type="radio" name="mcq_${qIdx}" value="${oIdx}" class="hidden" required>
-                                        <div class="custom-radio"></div>
+                                        <input type="radio" name="mcq_${qIdx}" value="${oIdx}" class="hidden print:block print:w-4 print:h-4" required>
+                                        <div class="custom-radio print:hidden"></div>
                                     </div>
                                     <span class="text-slate-700 font-medium group-hover:text-slate-900 leading-relaxed">${opt}</span>
                                 </label>
                             `).join('')}
                         </div>
                     </div>
-                `).join('<hr class="border-slate-100">');
+                `).join('<hr class="border-slate-100 print:border-black">');
             } else {
                 mcqContainer.parentElement.classList.add('hidden');
             }
@@ -613,7 +833,7 @@ Generate 3 MCQs and 3 True/False questions.`;
                                 <span class="text-emerald-500">${qIdx + 1}.</span> ${tf.statement}
                             </h3>
                         </div>
-                        <div class="flex gap-2 flex-shrink-0">
+                        <div class="flex gap-2 flex-shrink-0 print:hidden">
                             <label class="cursor-pointer">
                                 <input type="radio" name="tf_${qIdx}" value="true" class="peer hidden" required>
                                 <div class="px-6 py-2 rounded-lg border-2 border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 font-bold text-slate-500 transition-all text-center">True</div>
@@ -623,6 +843,11 @@ Generate 3 MCQs and 3 True/False questions.`;
                                 <div class="px-6 py-2 rounded-lg border-2 border-slate-200 peer-checked:border-rose-500 peer-checked:bg-rose-50 peer-checked:text-rose-700 font-bold text-slate-500 transition-all text-center">False</div>
                             </label>
                         </div>
+                        <!-- Print fallback for T/F -->
+                        <div class="hidden print:flex gap-4 font-bold text-slate-400">
+                            <span>[  ] True</span>
+                            <span>[  ] False</span>
+                        </div>
                     </div>
                 `).join('');
             } else {
@@ -630,6 +855,7 @@ Generate 3 MCQs and 3 True/False questions.`;
             }
 
             // Reset UI states
+            document.getElementById('submit-area').classList.remove('hidden');
             document.getElementById('btn-submit').classList.remove('hidden');
             document.getElementById('results-feedback').classList.add('hidden');
             
@@ -718,7 +944,7 @@ Generate 3 MCQs and 3 True/False questions.`;
             document.getElementById('results-score').textContent = `You scored ${score} out of ${total}!`;
             document.getElementById('results-message').textContent = msg;
             
-            feedbackEl.className = `mt-6 p-8 rounded-2xl border-2 text-center fade-in ${colors} flex flex-col items-center`;
+            feedbackEl.className = `mt-6 p-8 rounded-2xl border-2 text-center fade-in ${colors} flex flex-col items-center print:hidden`;
             feedbackEl.classList.remove('hidden');
             
             // Scroll to bottom
@@ -731,54 +957,64 @@ Generate 3 MCQs and 3 True/False questions.`;
         }
 
         // ================= TURKISH DICTIONARY FEATURE =================
-        document.addEventListener('dblclick', async (e) => {
+        document.addEventListener('mouseup', async (e) => {
             if (appState.currentView !== 'student') return;
             
-            // Ensure double click happened inside the reading passage
             const passageEl = document.getElementById('student-passage');
-            if (!passageEl.contains(e.target)) return;
-
-            const selection = window.getSelection();
-            // Clean the word by removing punctuation to ensure good API results
-            const word = selection.toString().trim().replace(/[.,!?;:"'()]/g, '');
-            
-            // Only translate single words
-            if (!word || word.includes(' ')) return;
-
             const tooltip = document.getElementById('dictionary-tooltip');
-            
-            // Calculate tooltip position directly above the highlighted word
+            const selection = window.getSelection();
+            const textToTranslate = selection.toString().trim();
+
+            if (!textToTranslate || !passageEl.contains(selection.anchorNode)) {
+                return;
+            }
+
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
             
-            // Position horizontally centered above the word
             tooltip.style.left = `${rect.left + window.scrollX + (rect.width / 2)}px`;
             tooltip.style.transform = `translateX(-50%)`;
-            tooltip.style.top = `${rect.top + window.scrollY - 40}px`; 
+            tooltip.style.top = `${rect.top + window.scrollY - 55}px`; 
             
             tooltip.classList.remove('hidden');
-            tooltip.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>Translating...`;
+            tooltip.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin text-brand-400"></i><span class="font-medium text-slate-200">Translating...</span></div>`;
 
             try {
-                // Using MyMemory API for free client-side translations (EN -> TR)
-                const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|tr`);
+                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(textToTranslate)}`;
+                const res = await fetch(url);
                 const data = await res.json();
                 
-                if (data && data.responseData && data.responseData.translatedText) {
-                    tooltip.innerHTML = `<span class="opacity-75 mr-1">${word}:</span> <strong>${data.responseData.translatedText}</strong>`;
+                if (data && data[0]) {
+                    const translatedText = data[0].map(segment => segment[0]).join('');
+                    const originalSnippet = textToTranslate.length > 30 ? textToTranslate.substring(0, 30) + '...' : textToTranslate;
+                    
+                    tooltip.innerHTML = `
+                        <div class="border-b border-slate-600 pb-1 mb-1.5 opacity-70 text-xs italic">
+                            "${originalSnippet}"
+                        </div>
+                        <div class="font-bold text-base text-emerald-300 leading-tight">
+                            ${translatedText}
+                        </div>
+                    `;
                 } else {
-                    tooltip.innerHTML = `Translation not found.`;
+                    throw new Error("Invalid response format");
                 }
             } catch (error) {
-                tooltip.innerHTML = `Error fetching translation.`;
+                console.error("Translation API Error:", error);
+                tooltip.innerHTML = `<span class="text-rose-400"><i class="fa-solid fa-circle-exclamation mr-1"></i> Translation unavailable.</span>`;
             }
         });
 
-        // Hide dictionary tooltip when clicking anywhere else
         document.addEventListener('mousedown', (e) => {
             const tooltip = document.getElementById('dictionary-tooltip');
-            if (!tooltip.contains(e.target)) {
+            if (!tooltip.contains(e.target) && window.getSelection().toString().trim() === '') {
                 tooltip.classList.add('hidden');
+            }
+        });
+        
+        document.addEventListener('selectionchange', () => {
+            if(window.getSelection().toString().trim() === '') {
+                 document.getElementById('dictionary-tooltip').classList.add('hidden');
             }
         });
 
