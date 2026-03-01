@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reading Comprehension Studio</title>
+    <!-- Tailwind CSS for rapid, modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts for highly readable typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        serif: ['Lora', 'serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                        },
+                        success: {
+                            100: '#d1fae5',
+                            800: '#065f46',
+                        },
+                        error: {
+                            100: '#ffe4e6',
+                            800: '#9f1239',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar and subtle animations */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Radio button custom styling for visual clarity */
+        .custom-radio {
+            appearance: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid #cbd5e1;
+            border-radius: 50%;
+            margin-right: 0.75rem;
+            display: inline-grid;
+            place-content: center;
+            transition: all 0.2s;
+        }
+        .custom-radio::before {
+            content: "";
+            width: 0.65rem;
+            height: 0.65rem;
+            border-radius: 50%;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+            background-color: #0ea5e9;
+        }
+        input[type="radio"]:checked + .custom-radio {
+            border-color: #0ea5e9;
+        }
+        input[type="radio"]:checked + .custom-radio::before {
+            transform: scale(1);
+        }
+
+        /* Reading text specific styling for visual learners */
+        .reading-text {
+            font-family: 'Lora', serif;
+            line-height: 2.2;
+            font-size: 1.15rem;
+            color: #334155;
+            letter-spacing: 0.02em;
+        }
+        .reading-text p { margin-bottom: 1.5rem; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-brand-600">
+                <i class="fa-solid fa-book-open-reader text-2xl"></i>
+                <h1 class="text-xl font-bold tracking-tight">Comprehension<span class="text-slate-800">Studio</span></h1>
+            </div>
+            <div class="flex bg-slate-100 rounded-lg p-1">
+                <button id="nav-teacher" class="px-4 py-2 rounded-md text-sm font-semibold bg-white shadow-sm text-brand-600 transition-all" onclick="switchMainView('teacher')">
+                    <i class="fa-solid fa-chalkboard-user mr-2"></i>Teacher
+                </button>
+                <button id="nav-student" class="px-4 py-2 rounded-md text-sm font-semibold text-slate-500 hover:text-slate-700 transition-all" onclick="switchMainView('student')">
+                    <i class="fa-solid fa-graduation-cap mr-2"></i>Student
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- ================= TEACHER DASHBOARD ================= -->
+        <section id="view-teacher" class="fade-in space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <!-- Tabs -->
+                <div class="flex border-b border-slate-100">
+                    <button id="tab-ai" class="flex-1 py-4 text-center font-semibold text-brand-600 border-b-2 border-brand-500 bg-brand-50 transition-colors" onclick="switchTeacherTab('ai')">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>AI Generation
+                    </button>
+                    <button id="tab-manual" class="flex-1 py-4 text-center font-semibold text-slate-500 hover:bg-slate-50 transition-colors" onclick="switchTeacherTab('manual')">
+                        <i class="fa-solid fa-pen-to-square mr-2"></i>Manual Input
+                    </button>
+                </div>
+
+                <!-- AI Tab Content -->
+                <div id="content-ai" class="p-6 sm:p-8">
+                    <div class="max-w-2xl mx-auto text-center space-y-6">
+                        <div class="bg-indigo-50 text-indigo-700 p-4 rounded-xl text-sm inline-block">
+                            <i class="fa-solid fa-circle-info mr-2"></i>
+                            Generate a complete reading lesson with passage, MCQs, and True/False questions in seconds.
+                        </div>
+                        <div class="space-y-2 text-left">
+                            <label class="block text-sm font-semibold text-slate-700">Lesson Topic or Theme</label>
+                            <input type="text" id="ai-topic" placeholder="e.g., Space Exploration, The History of Chocolate, Deep Sea Animals..." 
+                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow text-lg">
+                        </div>
+                        <div class="space-y-2 text-left">
+                            <label class="block text-sm font-semibold text-slate-700">Difficulty Level</label>
+                            <select id="ai-level" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow">
+                                <option value="A1 (Beginner)">A1 (Beginner)</option>
+                                <option value="A2 (Pre-Intermediate)">A2 (Pre-Intermediate)</option>
+                                <option value="B1 (Intermediate)" selected>B1 (Intermediate)</option>
+                                <option value="B2 (Upper-Intermediate)">B2 (Upper-Intermediate)</option>
+                            </select>
+                        </div>
+                        <button id="btn-generate" onclick="generateFromAPI()" class="w-full sm:w-auto px-8 py-3.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 mx-auto">
+                            <i class="fa-solid fa-bolt"></i> Generate Lesson
+                        </button>
+                        
+                        <!-- Loading State -->
+                        <div id="ai-loading" class="hidden flex-col items-center justify-center space-y-3 py-8">
+                            <i class="fa-solid fa-spinner fa-spin text-3xl text-brand-500"></i>
+                            <p class="text-slate-500 font-medium animate-pulse">Crafting the perfect lesson... this takes about 5-10 seconds.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Tab Content -->
+                <div id="content-manual" class="hidden p-6 sm:p-8 space-y-8">
+                    <!-- Passage Input -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-slate-700"><i class="fa-solid fa-align-left text-brand-500 mr-2"></i>Reading Passage</label>
+                        <textarea id="manual-passage" rows="6" placeholder="Paste your reading text here..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow font-serif"></textarea>
+                    </div>
+
+                    <!-- Multiple Choice Section -->
+                    <div class="space-y-4 bg-slate-50 p-6 rounded-xl border border-slate-100">
+                        <div class="flex justify-between items-center">
+                            <label class="block text-sm font-bold text-slate-700"><i class="fa-solid fa-list-ul text-brand-500 mr-2"></i>Multiple Choice Questions</label>
+                            <button onclick="addManualMCQ()" class="text-sm bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors font-semibold text-slate-600"><i class="fa-solid fa-plus mr-1"></i> Add MCQ</button>
+                        </div>
+                        <div id="manual-mcqs-container" class="space-y-6">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- True/False Section -->
+                    <div class="space-y-4 bg-slate-50 p-6 rounded-xl border border-slate-100">
+                        <div class="flex justify-between items-center">
+                            <label class="block text-sm font-bold text-slate-700"><i class="fa-solid fa-check-double text-brand-500 mr-2"></i>True/False Statements</label>
+                            <button onclick="addManualTF()" class="text-sm bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors font-semibold text-slate-600"><i class="fa-solid fa-plus mr-1"></i> Add T/F</button>
+                        </div>
+                        <div id="manual-tfs-container" class="space-y-4">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 flex justify-end">
+                        <button onclick="saveManualLesson()" class="px-8 py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-save"></i> Save & Preview Lesson
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Alert message for errors/success -->
+            <div id="teacher-alert" class="hidden p-4 rounded-xl font-medium flex items-center gap-3"></div>
+        </section>
+
+        <!-- ================= STUDENT VIEW ================= -->
+        <section id="view-student" class="hidden fade-in space-y-8">
+            
+            <!-- Empty State -->
+            <div id="student-empty" class="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-100">
+                <div class="w-20 h-20 bg-brand-50 text-brand-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                    <i class="fa-solid fa-ghost"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-700 mb-2">No Lesson Loaded</h2>
+                <p class="text-slate-500 max-w-md mx-auto">Switch to the Teacher Dashboard to generate or create a lesson first.</p>
+                <button onclick="switchMainView('teacher')" class="mt-6 px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors">Go to Dashboard</button>
+            </div>
+
+            <!-- Active Lesson State -->
+            <div id="student-active" class="hidden space-y-8">
+                <!-- Passage Card -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10">
+                    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                        <div class="w-10 h-10 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-book-open"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-800">Reading Passage</h2>
+                    </div>
+                    
+                    <div class="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm mb-6 flex items-start sm:items-center gap-3 shadow-sm border border-blue-100">
+                        <i class="fa-solid fa-language text-blue-500 text-xl mt-0.5 sm:mt-0"></i>
+                        <span><strong>Visual Learner Tip:</strong> Double-click any word in the text below to instantly see its <strong>Turkish translation</strong>!</span>
+                    </div>
+
+                    <div id="student-passage" class="reading-text">
+                        <!-- Content injected via JS -->
+                    </div>
+                </div>
+
+                <!-- Questions Form -->
+                <form id="student-form" onsubmit="checkAnswers(event)" class="space-y-8">
+                    
+                    <!-- MCQs Card -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10">
+                        <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                            <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-clipboard-question"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-slate-800">Multiple Choice</h2>
+                        </div>
+                        <div id="student-mcqs" class="space-y-8">
+                            <!-- Content injected via JS -->
+                        </div>
+                    </div>
+
+                    <!-- True/False Card -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-10">
+                        <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-scale-balanced"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-slate-800">True or False</h2>
+                        </div>
+                        <div id="student-tfs" class="space-y-6">
+                            <!-- Content injected via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Submit Area -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 text-center sticky bottom-4 z-20">
+                        <button type="submit" id="btn-submit" class="w-full sm:w-auto px-10 py-4 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1">
+                            <i class="fa-solid fa-paper-plane mr-2"></i> Submit Answers
+                        </button>
+                        
+                        <!-- Results Feedback -->
+                        <div id="results-feedback" class="hidden mt-6 p-6 rounded-xl border border-transparent">
+                            <div class="text-4xl mb-3" id="results-icon">🏆</div>
+                            <h3 class="text-2xl font-bold mb-2" id="results-score">You scored X/Y!</h3>
+                            <p class="text-lg font-medium" id="results-message">Great job!</p>
+                            <button type="button" onclick="resetLesson()" class="mt-4 px-6 py-2 bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 font-semibold transition-colors">Try Again</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Floating Dictionary Tooltip -->
+    <div id="dictionary-tooltip" class="hidden absolute z-50 bg-slate-800 text-white px-4 py-2 rounded-lg shadow-xl text-sm max-w-xs transition-opacity duration-200 pointer-events-none after:content-[''] after:absolute after:top-full after:left-1/2 after:-ml-2 after:border-4 after:border-transparent after:border-t-slate-800"></div>
+
+    <script>
+        // ================= STATE MANAGEMENT =================
+        const apiKey = ""; // API key injected by environment
+        let appState = {
+            currentView: 'teacher', // 'teacher' or 'student'
+            lessonData: null // { passage: "", mcqs: [], tfs: [] }
+        };
+
+        // ================= UI NAVIGATION & TABS =================
+        function switchMainView(view) {
+            appState.currentView = view;
+            
+            // Toggle Nav Buttons
+            document.getElementById('nav-teacher').className = view === 'teacher' 
+                ? 'px-4 py-2 rounded-md text-sm font-semibold bg-white shadow-sm text-brand-600 transition-all'
+                : 'px-4 py-2 rounded-md text-sm font-semibold text-slate-500 hover:text-slate-700 transition-all';
+            
+            document.getElementById('nav-student').className = view === 'student' 
+                ? 'px-4 py-2 rounded-md text-sm font-semibold bg-white shadow-sm text-brand-600 transition-all'
+                : 'px-4 py-2 rounded-md text-sm font-semibold text-slate-500 hover:text-slate-700 transition-all';
+
+            // Toggle Sections
+            document.getElementById('view-teacher').classList.toggle('hidden', view !== 'teacher');
+            document.getElementById('view-student').classList.toggle('hidden', view !== 'student');
+
+            if (view === 'student') {
+                renderLesson();
+            }
+        }
+
+        function switchTeacherTab(tab) {
+            const isAI = tab === 'ai';
+            
+            // Update Tab Styling
+            const activeClass = 'flex-1 py-4 text-center font-semibold text-brand-600 border-b-2 border-brand-500 bg-brand-50 transition-colors';
+            const inactiveClass = 'flex-1 py-4 text-center font-semibold text-slate-500 hover:bg-slate-50 transition-colors border-b border-transparent';
+            
+            document.getElementById('tab-ai').className = isAI ? activeClass : inactiveClass;
+            document.getElementById('tab-manual').className = !isAI ? activeClass : inactiveClass;
+
+            // Update Content Visibility
+            document.getElementById('content-ai').classList.toggle('hidden', !isAI);
+            document.getElementById('content-manual').classList.toggle('hidden', isAI);
+        }
+
+        function showAlert(message, type = 'error') {
+            const alertEl = document.getElementById('teacher-alert');
+            alertEl.className = `p-4 rounded-xl font-medium flex items-center gap-3 fade-in ${
+                type === 'error' ? 'bg-error-100 text-error-800 border border-error-200' : 'bg-success-100 text-success-800 border border-success-200'
+            }`;
+            alertEl.innerHTML = `<i class="fa-solid fa-${type === 'error' ? 'circle-exclamation' : 'circle-check'} text-xl"></i> ${message}`;
+            alertEl.classList.remove('hidden');
+            setTimeout(() => alertEl.classList.add('hidden'), 5000);
+        }
+
+        // ================= AI GENERATION (GEMINI API) =================
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    await new Promise(res => setTimeout(res, delays[i]));
+                }
+            }
+        }
+
+        async function generateFromAPI() {
+            const topic = document.getElementById('ai-topic').value.trim();
+            const level = document.getElementById('ai-level').value;
+            if (!topic) {
+                showAlert("Please enter a topic first.");
+                return;
+            }
+
+            // UI Loading State
+            document.getElementById('btn-generate').classList.add('hidden');
+            document.getElementById('ai-loading').classList.remove('hidden');
+            document.getElementById('ai-loading').classList.add('flex');
+            document.getElementById('teacher-alert').classList.add('hidden');
+
+            const prompt = `Create an engaging English reading comprehension lesson for EFL/ESL students.
+Topic: ${topic}
+Difficulty: ${level}
+
+CRITICAL INSTRUCTIONS:
+1. You MUST generate EXACTLY 3 multiple-choice questions in the "mcqs" array. Do NOT leave it empty.
+2. You MUST generate EXACTLY 3 true/false questions in the "tfs" array. Do NOT leave it empty.
+
+Return ONLY a JSON object with this EXACT structure (no markdown formatting, no code blocks, just raw JSON):
+{
+  "passage": "A highly engaging, well-structured reading text of 3-4 paragraphs suitable for visual learners (use formatting like line breaks).",
+  "mcqs": [
+    {
+      "question": "A clear multiple choice question",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": 0 // The integer index (0-3) of the correct option
+    }
+  ],
+  "tfs": [
+    {
+      "statement": "A clear statement from the text",
+      "isTrue": true // boolean
+    }
+  ]
+}
+Generate 3 MCQs and 3 True/False questions.`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            passage: { type: "STRING", description: "The reading passage text." },
+                            mcqs: {
+                                type: "ARRAY",
+                                description: "List of exactly 3 multiple choice questions.",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        question: { type: "STRING" },
+                                        options: { type: "ARRAY", items: { type: "STRING" } },
+                                        correctIndex: { type: "INTEGER" }
+                                    },
+                                    required: ["question", "options", "correctIndex"]
+                                }
+                            },
+                            tfs: {
+                                type: "ARRAY",
+                                description: "List of exactly 3 true/false statements.",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        statement: { type: "STRING" },
+                                        isTrue: { type: "BOOLEAN" }
+                                    },
+                                    required: ["statement", "isTrue"]
+                                }
+                            }
+                        },
+                        required: ["passage", "mcqs", "tfs"]
+                    }
+                }
+            };
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const data = await fetchWithRetry(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const jsonString = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!jsonString) throw new Error("Invalid response format from API");
+
+                const parsedData = JSON.parse(jsonString);
+                appState.lessonData = {
+                    passage: parsedData.passage || "",
+                    mcqs: parsedData.mcqs || [],
+                    tfs: parsedData.tfs || []
+                };
+                showAlert("Lesson generated successfully!", "success");
+                
+                // Pre-fill manual form in case teacher wants to edit
+                populateManualForm(appState.lessonData);
+                
+                // Switch to student view automatically
+                setTimeout(() => switchMainView('student'), 1500);
+
+            } catch (error) {
+                console.error("API Error:", error);
+                showAlert("Failed to generate lesson. Please try a different topic or try again later.");
+            } finally {
+                // Restore UI
+                document.getElementById('btn-generate').classList.remove('hidden');
+                document.getElementById('ai-loading').classList.add('hidden');
+                document.getElementById('ai-loading').classList.remove('flex');
+            }
+        }
+
+        // ================= MANUAL INPUT LOGIC =================
+        let mcqCount = 0;
+        let tfCount = 0;
+
+        function addManualMCQ(data = null) {
+            const container = document.getElementById('manual-mcqs-container');
+            const id = `manual_mcq_${mcqCount++}`;
+            
+            const html = `
+                <div id="${id}" class="bg-white p-4 rounded-lg border border-slate-200 relative group">
+                    <button onclick="document.getElementById('${id}').remove()" class="absolute top-2 right-2 text-slate-400 hover:text-error-800 transition-colors opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash"></i></button>
+                    <input type="text" class="mcq-q w-full mb-3 px-3 py-2 border-b-2 border-slate-100 focus:border-brand-500 outline-none font-semibold text-slate-700 bg-transparent placeholder-slate-400" placeholder="Question Text..." value="${data ? data.question : ''}">
+                    <div class="space-y-2 pl-2">
+                        ${[0, 1, 2, 3].map(i => `
+                            <div class="flex items-center gap-2">
+                                <input type="radio" name="${id}_correct" value="${i}" ${data && data.correctIndex === i ? 'checked' : (i===0 && !data ? 'checked' : '')} class="accent-brand-500 w-4 h-4 cursor-pointer">
+                                <input type="text" class="mcq-opt w-full px-3 py-1.5 border border-slate-200 rounded-md focus:ring-1 focus:ring-brand-500 text-sm" placeholder="Option ${String.fromCharCode(65+i)}" value="${data && data.options[i] ? data.options[i] : ''}">
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        function addManualTF(data = null) {
+            const container = document.getElementById('manual-tfs-container');
+            const id = `manual_tf_${tfCount++}`;
+            
+            const html = `
+                <div id="${id}" class="bg-white p-3 rounded-lg border border-slate-200 flex items-center gap-4 relative group">
+                     <button onclick="document.getElementById('${id}').remove()" class="absolute -left-2 -top-2 bg-white rounded-full text-slate-400 hover:text-error-800 transition-colors opacity-0 group-hover:opacity-100 shadow-sm border border-slate-100 w-6 h-6 flex items-center justify-center"><i class="fa-solid fa-times text-xs"></i></button>
+                    <input type="text" class="tf-q flex-grow px-3 py-2 border border-slate-100 rounded focus:border-brand-500 outline-none text-slate-700 placeholder-slate-400" placeholder="Statement..." value="${data ? data.statement : ''}">
+                    <select class="tf-ans px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 font-semibold text-slate-700 bg-slate-50 cursor-pointer">
+                        <option value="true" ${data && data.isTrue ? 'selected' : ''}>True</option>
+                        <option value="false" ${data && !data.isTrue ? 'selected' : ''}>False</option>
+                    </select>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        function populateManualForm(data) {
+            document.getElementById('manual-passage').value = data.passage || '';
+            document.getElementById('manual-mcqs-container').innerHTML = '';
+            document.getElementById('manual-tfs-container').innerHTML = '';
+            (data.mcqs || []).forEach(q => addManualMCQ(q));
+            (data.tfs || []).forEach(q => addManualTF(q));
+        }
+
+        function saveManualLesson() {
+            const passage = document.getElementById('manual-passage').value.trim();
+            if (!passage) {
+                showAlert("Reading passage cannot be empty.");
+                return;
+            }
+
+            const mcqs = [];
+            document.querySelectorAll('#manual-mcqs-container > div').forEach(div => {
+                const question = div.querySelector('.mcq-q').value.trim();
+                const options = Array.from(div.querySelectorAll('.mcq-opt')).map(i => i.value.trim());
+                const correctRadio = div.querySelector('input[type="radio"]:checked');
+                
+                if (question && options.every(o => o !== '') && correctRadio) {
+                    mcqs.push({
+                        question,
+                        options,
+                        correctIndex: parseInt(correctRadio.value)
+                    });
+                }
+            });
+
+            const tfs = [];
+            document.querySelectorAll('#manual-tfs-container > div').forEach(div => {
+                const statement = div.querySelector('.tf-q').value.trim();
+                const isTrue = div.querySelector('.tf-ans').value === 'true';
+                if (statement) {
+                    tfs.push({ statement, isTrue });
+                }
+            });
+
+            if (mcqs.length === 0 && tfs.length === 0) {
+                showAlert("Please add at least one question or statement.");
+                return;
+            }
+
+            appState.lessonData = { passage, mcqs, tfs };
+            showAlert("Lesson saved successfully!", "success");
+            setTimeout(() => switchMainView('student'), 1000);
+        }
+
+        // Initialize empty manual form
+        addManualMCQ();
+        addManualTF();
+
+        // ================= STUDENT VIEW RENDERING =================
+        function renderLesson() {
+            const emptyState = document.getElementById('student-empty');
+            const activeState = document.getElementById('student-active');
+            
+            if (!appState.lessonData) {
+                emptyState.classList.remove('hidden');
+                activeState.classList.add('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            activeState.classList.remove('hidden');
+
+            const passage = appState.lessonData.passage || '';
+            const mcqs = appState.lessonData.mcqs || [];
+            const tfs = appState.lessonData.tfs || [];
+
+            // Render Passage (convert single newlines to paragraphs for visual learners)
+            const passageHtml = passage.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+            document.getElementById('student-passage').innerHTML = passageHtml;
+
+            // Render MCQs
+            const mcqContainer = document.getElementById('student-mcqs');
+            if (mcqs.length > 0) {
+                mcqContainer.parentElement.classList.remove('hidden');
+                mcqContainer.innerHTML = mcqs.map((mcq, qIdx) => `
+                    <div class="question-block" data-type="mcq" data-index="${qIdx}">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex gap-2">
+                            <span class="text-brand-500">${qIdx + 1}.</span> ${mcq.question}
+                        </h3>
+                        <div class="space-y-3 pl-6">
+                            ${mcq.options.map((opt, oIdx) => `
+                                <label class="flex items-start p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors group">
+                                    <div class="pt-0.5">
+                                        <input type="radio" name="mcq_${qIdx}" value="${oIdx}" class="hidden" required>
+                                        <div class="custom-radio"></div>
+                                    </div>
+                                    <span class="text-slate-700 font-medium group-hover:text-slate-900 leading-relaxed">${opt}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('<hr class="border-slate-100">');
+            } else {
+                mcqContainer.parentElement.classList.add('hidden');
+            }
+
+            // Render T/Fs
+            const tfContainer = document.getElementById('student-tfs');
+            if (tfs.length > 0) {
+                tfContainer.parentElement.classList.remove('hidden');
+                tfContainer.innerHTML = tfs.map((tf, qIdx) => `
+                    <div class="question-block flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 transition-colors" data-type="tf" data-index="${qIdx}">
+                        <div class="flex-grow">
+                            <h3 class="text-base font-bold text-slate-800 flex gap-2">
+                                <span class="text-emerald-500">${qIdx + 1}.</span> ${tf.statement}
+                            </h3>
+                        </div>
+                        <div class="flex gap-2 flex-shrink-0">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="tf_${qIdx}" value="true" class="peer hidden" required>
+                                <div class="px-6 py-2 rounded-lg border-2 border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 font-bold text-slate-500 transition-all text-center">True</div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="tf_${qIdx}" value="false" class="peer hidden" required>
+                                <div class="px-6 py-2 rounded-lg border-2 border-slate-200 peer-checked:border-rose-500 peer-checked:bg-rose-50 peer-checked:text-rose-700 font-bold text-slate-500 transition-all text-center">False</div>
+                            </label>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                tfContainer.parentElement.classList.add('hidden');
+            }
+
+            // Reset UI states
+            document.getElementById('btn-submit').classList.remove('hidden');
+            document.getElementById('results-feedback').classList.add('hidden');
+            
+            // Enable all inputs
+            document.querySelectorAll('#student-form input').forEach(el => el.disabled = false);
+        }
+
+        // ================= CHECKING ANSWERS =================
+        function checkAnswers(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            let score = 0;
+            let total = appState.lessonData.mcqs.length + appState.lessonData.tfs.length;
+
+            // Check MCQs
+            appState.lessonData.mcqs.forEach((mcq, idx) => {
+                const selectedVal = formData.get(`mcq_${idx}`);
+                const block = document.querySelector(`.question-block[data-type="mcq"][data-index="${idx}"]`);
+                const labels = block.querySelectorAll('label');
+                
+                // Reset styling
+                labels.forEach(l => l.className = "flex items-start p-3 rounded-xl border border-slate-200 transition-colors group opacity-50");
+                
+                const selectedIdx = parseInt(selectedVal);
+                const isCorrect = selectedIdx === mcq.correctIndex;
+
+                if (isCorrect) score++;
+
+                // Apply visual feedback
+                labels.forEach((label, lIdx) => {
+                    if (lIdx === mcq.correctIndex) {
+                        label.className = "flex items-start p-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 transition-colors font-bold text-emerald-800";
+                        label.innerHTML += `<i class="fa-solid fa-check text-emerald-500 ml-auto self-center text-xl"></i>`;
+                    } else if (lIdx === selectedIdx && !isCorrect) {
+                        label.className = "flex items-start p-3 rounded-xl border-2 border-rose-500 bg-rose-50 transition-colors font-bold text-rose-800";
+                        label.innerHTML += `<i class="fa-solid fa-xmark text-rose-500 ml-auto self-center text-xl"></i>`;
+                    }
+                });
+            });
+
+            // Check T/Fs
+            appState.lessonData.tfs.forEach((tf, idx) => {
+                const selectedVal = formData.get(`tf_${idx}`);
+                const block = document.querySelector(`.question-block[data-type="tf"][data-index="${idx}"]`);
+                const selectedBool = selectedVal === 'true';
+                const isCorrect = selectedBool === tf.isTrue;
+
+                if (isCorrect) score++;
+
+                // Visual feedback on block
+                block.className = `question-block flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border-2 transition-colors ${
+                    isCorrect ? 'border-emerald-500 bg-emerald-50' : 'border-rose-500 bg-rose-50'
+                }`;
+                
+                // Add icon next to statement
+                const h3 = block.querySelector('h3');
+                if(!h3.querySelector('.result-icon')) {
+                     h3.innerHTML += `<span class="result-icon ml-2 ${isCorrect ? 'text-emerald-500' : 'text-rose-500'}"><i class="fa-solid ${isCorrect ? 'fa-check-circle' : 'fa-times-circle'}"></i></span>`;
+                }
+            });
+
+            // Disable form
+            document.querySelectorAll('#student-form input').forEach(el => el.disabled = true);
+            document.getElementById('btn-submit').classList.add('hidden');
+
+            // Show feedback
+            const feedbackEl = document.getElementById('results-feedback');
+            const pct = score / total;
+            
+            let icon = '🌟';
+            let msg = 'Perfect! Outstanding comprehension.';
+            let colors = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+            
+            if (pct < 1 && pct >= 0.7) {
+                icon = '👍';
+                msg = 'Great job! You understood most of it.';
+                colors = 'bg-brand-100 text-brand-800 border-brand-300';
+            } else if (pct < 0.7) {
+                icon = '📚';
+                msg = 'Good try. Review the text and try again!';
+                colors = 'bg-amber-100 text-amber-800 border-amber-300';
+            }
+
+            document.getElementById('results-icon').textContent = icon;
+            document.getElementById('results-score').textContent = `You scored ${score} out of ${total}!`;
+            document.getElementById('results-message').textContent = msg;
+            
+            feedbackEl.className = `mt-6 p-8 rounded-2xl border-2 text-center fade-in ${colors} flex flex-col items-center`;
+            feedbackEl.classList.remove('hidden');
+            
+            // Scroll to bottom
+            feedbackEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function resetLesson() {
+            renderLesson();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ================= TURKISH DICTIONARY FEATURE =================
+        document.addEventListener('dblclick', async (e) => {
+            if (appState.currentView !== 'student') return;
+            
+            // Ensure double click happened inside the reading passage
+            const passageEl = document.getElementById('student-passage');
+            if (!passageEl.contains(e.target)) return;
+
+            const selection = window.getSelection();
+            // Clean the word by removing punctuation to ensure good API results
+            const word = selection.toString().trim().replace(/[.,!?;:"'()]/g, '');
+            
+            // Only translate single words
+            if (!word || word.includes(' ')) return;
+
+            const tooltip = document.getElementById('dictionary-tooltip');
+            
+            // Calculate tooltip position directly above the highlighted word
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            
+            // Position horizontally centered above the word
+            tooltip.style.left = `${rect.left + window.scrollX + (rect.width / 2)}px`;
+            tooltip.style.transform = `translateX(-50%)`;
+            tooltip.style.top = `${rect.top + window.scrollY - 40}px`; 
+            
+            tooltip.classList.remove('hidden');
+            tooltip.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>Translating...`;
+
+            try {
+                // Using MyMemory API for free client-side translations (EN -> TR)
+                const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|tr`);
+                const data = await res.json();
+                
+                if (data && data.responseData && data.responseData.translatedText) {
+                    tooltip.innerHTML = `<span class="opacity-75 mr-1">${word}:</span> <strong>${data.responseData.translatedText}</strong>`;
+                } else {
+                    tooltip.innerHTML = `Translation not found.`;
+                }
+            } catch (error) {
+                tooltip.innerHTML = `Error fetching translation.`;
+            }
+        });
+
+        // Hide dictionary tooltip when clicking anywhere else
+        document.addEventListener('mousedown', (e) => {
+            const tooltip = document.getElementById('dictionary-tooltip');
+            if (!tooltip.contains(e.target)) {
+                tooltip.classList.add('hidden');
+            }
+        });
+
+    </script>
+</body>
+</html>
